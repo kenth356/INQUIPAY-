@@ -118,40 +118,10 @@ def cashIN():
     saveSTUDENTS_BALANCE(stud_balance)
 
 def sendtoRECIPIENT():
-    transactions = payment_transac()
-    db = connectDB()
-    cursor = db.cursor(dictionary=True)
-    try:
-        print("\n[SEND TO RECIPIENT]")
-        recipient_student_id = input("Enter Recipient's Student ID: ")
-        amount = float(input("\nEnter Amount to Send: "))
-        query_sender = "SELECT * FROM student WHERE first_name = %s"
-        cursor.execute(query_sender, (REGISTERED_name,))
-        sender = cursor.fetchone()
-        if sender is None:
-            print("\n[USER DOES NOT EXIST]")
-            return
-        if sender['balance'] < amount:
-            print("\n[INSUFFICIENT FUNDS]")
-            return
-        query_receiver = "SELECT * FROM student WHERE student_id = %s"
-        cursor.execute(query_receiver, (recipient_student_id,))
-        receiver = cursor.fetchone()
-        if receiver is None:
-            print("\n[USER DOES NOT EXIST]")
-            return
-        transaction_sender = "UPDATE student SET balance = balance - %s WHERE student_id = %s"
-        cursor.execute(transaction_sender, (amount, sender['student_id']))
-        transaction_receiver = "UPDATE student SET balance = balance + %s WHERE student_id = %s"
-        cursor.execute(transaction_receiver, (amount, recipient_student_id))
-        print(f"\n[SUCCESSFULLY SENT Php {amount} to {receiver['first_name']}]")
-        print(f"[YOUR CURRENT BALANCE: Php {float(sender['balance']) - amount}]")
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        print("\n[TRANSFER FAILED]", e)
-    finally:
-        db.close()
+    print("\n[SEND TO RECIPIENT]")
+    recipient_student_id = input("Enter Recipient's Student ID: ")
+    amount = float(input("\nEnter Amount to Send: "))
+    saveSEND_RECIPIENT_PROCESS(recipient_student_id, amount)
 
 
 def saveSTUDENTS(students):
@@ -188,6 +158,38 @@ def saveSTUDENTS_BALANCE(stud_balance):
     finally:
         db.close()
 
+def saveSEND_RECIPIENT_PROCESS(recipient_student_id, amount):
+    transactions = payment_transac()
+    db = connectDB()
+    cursor = db.cursor(dictionary=True)
+    try:
+        query_sender = "SELECT * FROM student WHERE first_name = %s"
+        cursor.execute(query_sender, (REGISTERED_name,))
+        sender = cursor.fetchone()
+        if sender is None:
+            print("\n[USER DOES NOT EXIST]")
+            return
+        if sender['balance'] < amount:
+            print("\n[INSUFFICIENT FUNDS]")
+            return
+        query_receiver = "SELECT * FROM student WHERE student_id = %s"
+        cursor.execute(query_receiver, (recipient_student_id,))
+        receiver = cursor.fetchone()
+        if receiver is None:
+            print("\n[USER DOES NOT EXIST]")
+            return
+        transaction_sender = "UPDATE student SET balance = balance - %s WHERE student_id = %s"
+        cursor.execute(transaction_sender, (amount, sender['student_id']))
+        transaction_receiver = "UPDATE student SET balance = balance + %s WHERE student_id = %s"
+        cursor.execute(transaction_receiver, (amount, recipient_student_id))
+        print(f"\n[SUCCESSFULLY SENT Php {amount} to {receiver['first_name']}]")
+        print(f"[YOUR CURRENT BALANCE: Php {float(sender['balance']) - amount}]")
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print("\n[TRANSFER FAILED]", e)
+    finally:
+        db.close()
 
 if __name__ == "__main__":
     main()
