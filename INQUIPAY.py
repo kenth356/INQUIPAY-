@@ -1,4 +1,5 @@
 from connection import connectDB
+from refeno import generate_reference_no_CASHIN, generate_reference_no_SENDPAYMENT, generate_cashIN_date, generate_sendpayment_date
 
 REGISTERED_name = ""
 
@@ -80,8 +81,8 @@ def login():
     # SIMPLE LOG IN MENU
     print("\n[LOG - IN]")
     pin_LG = input("Enter your PIN: ")
-    query = "SELECT * FROM student WHERE pin = %s"
-    cursor.execute(query, (pin_LG,))
+    pin_query = "SELECT * FROM student WHERE pin = %s"
+    cursor.execute(pin_query, (pin_LG,))
     result = cursor.fetchone()
     # BYPASSING TO THE MAIN MENU (INQUIPAY)
     if result:
@@ -123,45 +124,48 @@ def sendtoRECIPIENT():
     amount = float(input("\nEnter Amount to Send: "))
     saveSEND_RECIPIENT_PROCESS(recipient_student_id, amount)
 
-
 def saveSTUDENTS(students):
-    db = connectDB()
-    cursor = db.cursor()
+    my_sql = connectDB()
+    cursor = my_sql.cursor()
     try:
-        query = """INSERT INTO student(student_id, first_name, last_name, course, year_level, email, contact_number, pin)
+        insert_student_data_query = """INSERT INTO student(student_id, first_name, last_name, course, year_level, email, contact_number, pin)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
         values = (
             students.student_id, students.fname, students.lname, students.course,
             students.year_lvl, students.email, students.contact_num, students.pin
         )
-        cursor.execute(query, values)
+        cursor.execute(insert_student_data_query, values)
         print("\n[DATA SAVED]\n")
-        db.commit()
+        my_sql.commit()
     except Exception as e:
-        db.rollback()
+        my_sql.rollback()
         print("\n[DATA FAILED TO BE SAVED]", e)
     finally:
-        db.close()
+        my_sql.close()
 
 def saveSTUDENTS_BALANCE(stud_balance):
-    db = connectDB()
-    cursor = db.cursor()
+    my_sql = connectDB()
+    cursor = my_sql.cursor()
     try:
-        query = "UPDATE student SET balance = balance + %s WHERE first_name = %s"
+        update_student_balance_query = "UPDATE student SET balance = balance + %s WHERE first_name = %s"
         value = (stud_balance.balance, REGISTERED_name)
-        cursor.execute(query, value)
-        print(f"\n[Php {stud_balance.balance} was deposited in your account]")
-        db.commit()
+        cursor.execute(update_student_balance_query, value)
+        cash_in_ref = generate_reference_no_CASHIN()
+        cash_in_date = generate_cashIN_date()
+        print(f"\n=== REFERENCE NO.: {cash_in_ref} ===")
+        print(f"[Php {stud_balance.balance} WAS DEPOSITED IN YOUR ACCOUNT]")
+        print(f"=== DATE: {cash_in_date} ===")
+        my_sql.commit()
     except Exception as e:
-        db.rollback()
+        my_sql.rollback()
         print(f"\n[CASH IN FAILED]", e)
     finally:
-        db.close()
+        my_sql.close()
 
 def saveSEND_RECIPIENT_PROCESS(recipient_student_id, amount):
     transactions = payment_transac()
-    db = connectDB()
-    cursor = db.cursor(dictionary=True)
+    my_sql = connectDB()
+    cursor = my_sql.cursor(dictionary=True)
     try:
         query_sender = "SELECT * FROM student WHERE first_name = %s"
         cursor.execute(query_sender, (REGISTERED_name,))
@@ -182,14 +186,22 @@ def saveSEND_RECIPIENT_PROCESS(recipient_student_id, amount):
         cursor.execute(transaction_sender, (amount, sender['student_id']))
         transaction_receiver = "UPDATE student SET balance = balance + %s WHERE student_id = %s"
         cursor.execute(transaction_receiver, (amount, recipient_student_id))
-        print(f"\n[SUCCESSFULLY SENT Php {amount} to {receiver['first_name']}]")
+        transactions.reference_no = generate_reference_no_SENDPAYMENT()
+        insert_transaction = """INSERT INTO payment_transaction (ticket_id, receiver_name, payment_amount, reference_no)
+        VALUES (%s, %s, %s, %s)"""
+        values = (sender['ticket_id'], receiver['first_name'], amount, transactions.reference_no)
+        cursor.execute(insert_transaction, values)
+        transactions.payment_date = generate_sendpayment_date()
+        print(f"\n=== REFERENCE NO.: {transactions.reference_no} ===")
+        print(f"[SUCCESSFULLY SENT Php {amount} to {receiver['first_name']}]")
         print(f"[YOUR CURRENT BALANCE: Php {float(sender['balance']) - amount}]")
-        db.commit()
+        print(f"=== DATE: {transactions.payment_date} ===")
+        my_sql.commit()
     except Exception as e:
-        db.rollback()
+        my_sql.rollback()
         print("\n[TRANSFER FAILED]", e)
     finally:
-        db.close()
+        my_sql.close()
 
 if __name__ == "__main__":
     main()
