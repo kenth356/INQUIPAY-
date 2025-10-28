@@ -11,10 +11,18 @@ def generate_reference_no_SENDPAYMENT():
     random_no = random.randint(100000, 999999)
     return f"INQ--{today}--{random_no}"
 
+def generate_reference_no_SCHOOLREQS():
+    random_no = random.randint(100000, 999999)
+    return f"{random_no}"
+
 def generate_cashIN_date():
     today = datetime.now().strftime("%B %d, %Y")
     return f"{today}"
 
 def generate_sendpayment_date():
+    today = datetime.now().strftime("%B %d, %Y")
+    return f"{today}"
+
+def generate_schoolREQS_date():
     today = datetime.now().strftime("%B %d, %Y")
     return f"{today}"
