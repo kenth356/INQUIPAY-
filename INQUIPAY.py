@@ -1,5 +1,6 @@
 from connection import connectDB
-from refeno import generate_reference_no_CASHIN, generate_reference_no_SENDPAYMENT, generate_cashIN_date, generate_sendpayment_date
+from generator import generate_reference_no_CASHIN, generate_reference_no_SENDPAYMENT, generate_cashIN_date, generate_sendpayment_date
+from admin import admin_bypass_code
 
 REGISTERED_name = ""
 
@@ -18,13 +19,14 @@ class student:
 class financial_status:
     def __init__(self):
         self.status_id = 0
-        self.payment_status = ""
         self.tuition_amtb = 0.0
         self.uniform_amtb = 0.0
         self.books_amtb = 0.0
+        self.payment_status = ""
         self.discount_status = ""
         self.scholar_type = ""
         self.semester = ""
+        self.purpose = ""
 
 class payment_transac:
     def __init__(self):
@@ -52,7 +54,7 @@ def main():
             case 2:
                 regis()
             case 3:
-                admin()
+                admin_bypass()
             case 4:
                 exit()
             case _:
@@ -93,6 +95,47 @@ def login():
     else:
         print("\n[INVALID PIN]")
 
+def admin_bypass():
+    print("\n[ADMIN BYPASS MENU]")
+    code = admin_bypass_code()
+    try:
+        bypass = float(input("Enter Admin Code: "))
+    except ValueError:
+        bypass = -1
+    if bypass == code:
+        admin()
+    else:
+        for i in range(3):
+            print("\n[INVALID CODE]")
+
+def admin():
+    while True:
+        print("\n[ADMIN PANELS]")
+        print("1. Manage Tuition Fees Payments / Inquiries")
+        print("2. Manage Uniform Payments / Inquiries")
+        print("3. Manage Books Payments / Inquiries")
+        print("4. Go Back")
+        try:
+            choice = int(input("Enter: "))
+        except ValueError:
+            choice = -1
+        match choice:
+            case 1:
+                manageTUI()
+            case 2:
+                manageUNI()
+            case 3:
+                manageBOOKS()
+            case 4:
+                break
+            case _:
+                for i in range(3):
+                    print("\n[PLEASE ENTER A VALID INPUT]")
+
+def manageTUI():
+    print("\n[MANAGE TUITION PAYMENTS AND INQUIRIES]")
+    student_status = financial_status()
+
 def inquipay():
     while True:
         print(f"\n[WELCOME {REGISTERED_name}]")
@@ -119,10 +162,11 @@ def cashIN():
     saveSTUDENTS_BALANCE(stud_balance)
 
 def sendtoRECIPIENT():
+    transactions = payment_transac()
     print("\n[SEND TO RECIPIENT]")
     recipient_student_id = input("Enter Recipient's Student ID: ")
-    amount = float(input("\nEnter Amount to Send: "))
-    saveSEND_RECIPIENT_PROCESS(recipient_student_id, amount)
+    transactions.payment_amount = float(input("\nEnter Amount to Send: "))
+    saveSEND_RECIPIENT_PROCESS(recipient_student_id, transactions)
 
 def saveSTUDENTS(students):
     my_sql = connectDB()
@@ -162,8 +206,9 @@ def saveSTUDENTS_BALANCE(stud_balance):
     finally:
         my_sql.close()
 
-def saveSEND_RECIPIENT_PROCESS(recipient_student_id, amount):
-    transactions = payment_transac()
+def saveSEND_RECIPIENT_PROCESS(recipient_student_id, transactions):
+    transactions.payment_date = generate_sendpayment_date()
+    transactions.reference_no = generate_reference_no_SENDPAYMENT()
     my_sql = connectDB()
     cursor = my_sql.cursor(dictionary=True)
     try:
@@ -173,7 +218,7 @@ def saveSEND_RECIPIENT_PROCESS(recipient_student_id, amount):
         if sender is None:
             print("\n[USER DOES NOT EXIST]")
             return
-        if sender['balance'] < amount:
+        if sender['balance'] < transactions.payment_amount:
             print("\n[INSUFFICIENT FUNDS]")
             return
         query_receiver = "SELECT * FROM student WHERE student_id = %s"
@@ -183,18 +228,16 @@ def saveSEND_RECIPIENT_PROCESS(recipient_student_id, amount):
             print("\n[USER DOES NOT EXIST]")
             return
         transaction_sender = "UPDATE student SET balance = balance - %s WHERE student_id = %s"
-        cursor.execute(transaction_sender, (amount, sender['student_id']))
+        cursor.execute(transaction_sender, (transactions.payment_amount, sender['student_id']))
         transaction_receiver = "UPDATE student SET balance = balance + %s WHERE student_id = %s"
-        cursor.execute(transaction_receiver, (amount, recipient_student_id))
-        transactions.reference_no = generate_reference_no_SENDPAYMENT()
-        insert_transaction = """INSERT INTO payment_transaction (ticket_id, receiver_name, payment_amount, reference_no)
+        cursor.execute(transaction_receiver, (transactions.payment_amount, recipient_student_id))
+        insert_transaction = """INSERT INTO payment_transaction (ticket_id, sender_name, receiver_name, payment_amount, reference_no)
         VALUES (%s, %s, %s, %s)"""
-        values = (sender['ticket_id'], receiver['first_name'], amount, transactions.reference_no)
+        values = (sender['ticket_id'], sender['first_name'], receiver['first_name'], transactions.payment_amount, transactions.reference_no)
         cursor.execute(insert_transaction, values)
-        transactions.payment_date = generate_sendpayment_date()
         print(f"\n=== REFERENCE NO.: {transactions.reference_no} ===")
-        print(f"[SUCCESSFULLY SENT Php {amount} to {receiver['first_name']}]")
-        print(f"[YOUR CURRENT BALANCE: Php {float(sender['balance']) - amount}]")
+        print(f"[SUCCESSFULLY SENT Php {transactions.payment_amount} to {receiver['first_name']}]")
+        print(f"[YOUR CURRENT BALANCE: Php {float(sender['balance']) - transactions.payment_amount}]")
         print(f"=== DATE: {transactions.payment_date} ===")
         my_sql.commit()
     except Exception as e:
