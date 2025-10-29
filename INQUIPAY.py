@@ -1,6 +1,7 @@
 from connection import connectDB
 from generator import generate_reference_no_CASHIN, generate_reference_no_SENDPAYMENT, generate_reference_no_SCHOOLREQS, generate_cashIN_date, generate_sendpayment_date, generate_schoolREQS_date
 import adminCODE
+import random
 
 REGISTERED_name = ""
 
@@ -26,10 +27,13 @@ class financial_status:
         self.payment_status = ""
         self.discount_type = ""
         self.discount_percent = 0.0
-        self.final_amt = 0.0
+        self.final_amtb = 0.0
         self.scholar_type = ""
         self.semester = ""
         self.purpose = ""
+        self.status_column = ""
+        self.new_status = ""
+        self.amount_due = 0.0
 
 class payment_transac:
     def __init__(self):
@@ -47,6 +51,13 @@ class notifications:
         self.notif_type = ""
         self.notif_message = ""
         self.notif_date = ""
+
+class discounted_fees:
+    def __init__(self):
+        self.tuition_discounted = 0.0
+        self.book_discounted = 0.0
+        self.uniform_discounted = 0.0
+        self.total_discounted = 0.0
 
 def main():
     while True:
@@ -72,6 +83,38 @@ def main():
                 for i in range(3):
                     print("\n[PLEASE ENTER A VALID INPUT]")
 
+def inquipay():
+    while True:
+        print(f"\n[WELCOME {REGISTERED_name}]")
+        print("1. Cash In")
+        print("2. Send to Recipient")
+        print("3. Pay School Requisites")
+        print("4. Notifications")
+        print("5. Check Balance")
+        print("6. Help Center")
+        print("7. Go Back")
+        try:
+            choice = int(input("Enter: "))
+        except ValueError:
+            choice = -1
+        match choice:
+            case 1:
+                cashIN()
+            case 2:
+                sendtoRECIPIENT()
+            case 3:
+                paytoSCHOOLREQ()
+            case 4:
+                viewNOTIFS()
+            case 5:
+                checkBALANCE()
+            case 6:
+                helpCENTER()
+            case 7:
+                break
+            case _:
+                for i in range(3):
+                    print("\n[PLEASE ENTER A VALID INPUT]")
 
 def regis():
     students = student()
@@ -108,7 +151,7 @@ def login():
 
 def admin_bypass():
     print("\n[ADMIN BYPASS MENU]")
-    code = 2706
+    code = adminCODE.admin_bypass_code
     try:
         bypass = float(input("Enter Admin Code: "))
     except ValueError:
@@ -140,15 +183,171 @@ def admin():
                 for i in range(3):
                     print("\n[PLEASE ENTER A VALID INPUT]")
 
+def cashIN():
+    stud_balance = student()
+    print("\n[CASH IN]")
+    stud_balance.balance = float(input("Enter Amount: "))
+    saveSTUDENTS_BALANCE(stud_balance)
+
+def sendtoRECIPIENT():
+    transactions = payment_transac()
+    print("\n[SEND TO RECIPIENT]")
+    recipient_student_id = input("Enter Recipient's Student ID: ")
+    transactions.payment_amount = float(input("\nEnter Amount to Send: "))
+    transactions.purpose = input("\nEnter purpose: ")
+    saveSEND_RECIPIENT_PROCESS(recipient_student_id, transactions)
+
+def paytoSCHOOLREQ():
+    transactions = payment_transac()
+    print("\n[PAY SCHOOL REQUISITES]")
+    transactions.purpose = input("Enter payment purpose: ")
+    transactions.payment_amount = float(input("\nEnter Amount to Pay: "))
+    savePAY_TO_SCHOOLREQ_PROCESS(transactions)
+
+def viewNOTIFS():
+    try:
+        my_sql = connectDB()
+        cursor = my_sql.cursor(dictionary=True)
+        student_query = "SELECT * FROM student WHERE first_name = %s"
+        cursor.execute(student_query, (REGISTERED_name,))
+        student_data = cursor.fetchone()
+        if student_data is None:
+            print("\nSTUDENT NOT FOUND")
+            return
+        notification_query = "SELECT * FROM notifications WHERE student_id = %s ORDER BY notif_date DESC"
+        cursor.execute(notification_query, (student_data['student_id'],))
+        notifications_data = cursor.fetchall()
+        if not notifications_data:
+            print("\n[NO NEW NOTIFICATIONS]")
+            return
+        print("\n=== [NOTIFICATIONS] ===")
+        for notifs in notifications_data:
+            print(f"\n{notifs['notif_type'].upper()} || {notifs['notif_message']}")
+            print(f"Date: {notifs['notif_date']}")
+        my_sql.commit()
+    except Exception as e:
+        my_sql.rollback()
+        print("\n[FAILED TO LOAD NOTIFICATIONS]", e)
+
+def checkBALANCE():
+    my_sql = connectDB()
+    cursor = my_sql.cursor(dictionary=True)
+    check_balance_query = "SELECT * FROM student WHERE first_name = %s"
+    cursor.execute(check_balance_query, (REGISTERED_name,))
+    student_data = cursor.fetchone()
+    if student_data is None:
+        print("\n[STUDENT DATA DOES NOT EXISTS]")
+    print(f"\n=== [YOUR CURRENT BALANCE: {student_data['balance']}]")
+
+def helpCENTER():
+    while True:
+        print("\n[HELP CENTER]")
+        print("1. Inquire to School")
+        print("2. How to Use")
+        print("3. Go Back")
+        try:
+            choice = int(input("Enter: "))
+        except ValueError:
+            choice = -1
+        match choice:
+            case 1:
+                inquire()
+            case 2:
+                howtoUSE()
+            case 3:
+                break
+            case _:
+                for i in range(3):
+                    print("\n[PLEASE ENTER A VALID INPUT]")
+
+def inquire():
+    print("\n[INQUIRE TO DYCI]")
+    question = input("Enter inquiry: ")
+    if "finance" in question.lower() and "open" in question.lower():
+        is_open = random.choice([True, False])
+        if is_open:
+            print("\n[RESPONSE: Yes! DYCI Elida Campus is Open today for Financial Operations!]")
+        else:
+            print("\n[RESPONSE: DYCI is Closed today]")
+    elif "statement of account" in question.lower() or "soa" in question.lower():
+        reqSOA()
+    elif "books" in question.lower() or "book" in question.lower():
+        has_stock = random.choice([True, False])
+        if has_stock:
+            print("\n[RESPONSE: Yes! DYCI Elida Campus currently has book stocks available!]")
+        else:
+            print("\n[RESPONSE: DYCI Elida Campus book stocks are currently unavailable]")
+    elif "uniform" in question.lower():
+        has_stock = random.choice([True, False])
+        if has_stock:
+            print("\n[RESPONSE: Yes! DYCI Elida Campus currently has uniform stocks available!]")
+        else:
+            print("\n[RESPONSE: DYCI Elida Campus uniform stocks are currently unavailable]")
+    else:
+        print("\n[RESPONSE: Please do contact dycifinance@gmail.com For specific questions]")
+
+def howtoUSE():
+    print("\n[WELCOME TO INQUI-PAY HELP MANUAL!]")
+    print("--------------------------------------")
+    print("CASH-IN - Add funds in your account")
+    print("SEND TO RECIPIENT - Send money to another inqui-pay user (student only)")
+    print("PAY SCHOOL REQUISITES - Pay tuition, books, and uniforms!")
+    print("NOTIFICATIONS - View system and school updates")
+    print("CHECK BALANCE - View your current balance")
+    print("HELP CENTER - Can inquire for school purpose and Help Manual")
+
+def reqSOA():
+    my_sql = connectDB()
+    cursor = my_sql.cursor(dictionary=True)
+    try:
+        student_query = "SELECT * FROM student WHERE first_name = %s"
+        cursor.execute(student_query, (REGISTERED_name,))
+        student_data = cursor.fetchone()
+        if student_data is None:
+            print("\n[STUDENT DATA NOT FOUND]")
+            return
+        financial_query = "SELECT * FROM financial_status WHERE ticket_id = %s"
+        cursor.execute(financial_query, (student_data['ticket_id'],))
+        finance_data = cursor.fetchone()
+        if finance_data is None:
+            print("\n[FINANCE DATA NOT FOUND]")
+            return
+        discount_query = "SELECT * FROM discounted_fees WHERE status_id = %s"
+        cursor.execute(discount_query, (finance_data['status_id'],))
+        discounted = cursor.fetchone()
+        print("\n[STATEMENT OF ACCOUNT]")
+        print(f"STUDENT NAME: {student_data['last_name']}, {student_data['first_name']}")
+        print(f"STUDENT ID: {student_data['student_id']}")
+        print("---------------------------------------------")
+        print(f"ORIGINAL TUITION FEE: PHP {finance_data['tuition_amtb']}")
+        print(f"ORIGINAL BOOKS FEE: PHP {finance_data['books_amtb']}")
+        print(f"ORIGINAL UNIFORM FEE: PHP {finance_data['uniform_amtb']}")
+        print(f"ORIGINAL TOTAL: PHP {finance_data['total_amtb']}")
+        print("---------------------------------------------")
+        if discounted:
+            print(f"DISCOUNTED TUITION FEE: PHP {discounted['tuition_discounted']}")
+            print(f"DISCOUNTED BOOKS FEE: PHP {discounted['books_discounted']}")
+            print(f"DISCOUNTED UNIFORM FEE: PHP {discounted['uniform_discounted']}")
+            print(f"DISCOUNTED TOTAL: PHP {discounted['total_discounted']}")
+        print("----------------------------------------------")
+        print(f"FINAL AMOUNT TO BE PAID: PHP {finance_data['final_amtb']}")
+        print(f"PAYMENT STATUS: {finance_data['payment_status']}")
+        my_sql.commit()
+    except Exception as e:
+        my_sql.rollback()
+        print("REQUESTING FAILED", e)
+    finally:
+        my_sql.close()
+
 def manageTUI():
     student_status = financial_status()
     print("\n[MANAGE TUITION FEE PAYMENTS AND INQUIRIES]")
     student_id = int(input("Enter Student ID: "))
-    student_status.tuition_amtb = float(input("Enter Tuition Fee Amount: "))
-    student_status.uniform_amtb = float(input("Enter Uniform Amount: "))
-    student_status.books_amtb = float(input("Enter Books Amount: "))
-    student_status.discount_type = input("Enter discount type: ")
-    student_status.semester = input("Enter semester: ")
+    student_status.tuition_amtb = float(input("\nEnter Tuition Fee Amount: "))
+    student_status.uniform_amtb = float(input("\nEnter Uniform Amount: "))
+    student_status.books_amtb = float(input("\nEnter Books Amount: "))
+    student_status.discount_type = input("\nEnter Discount Type: ")
+    student_status.semester = input("\nEnter Semester: ")
     saveTUISTAT(student_id, student_status)
 
 def manageINQ():
@@ -156,7 +355,7 @@ def manageINQ():
         print("\n[MANAGE INQUIRIES]")
         print("1. Toggle tuition notifications")
         print("2. Toggle uniform notifications")
-        print("3. Toggle books notifcations")
+        print("3. Toggle books notiifcations")
         print("4. Toggle system notifications")
         print("5. Go Back")
         try:
@@ -191,7 +390,7 @@ def tuitionNOTIFS():
         if student_data is None:
             print("\n[STUDENT NOT FOUND]")
             return
-        student_schoolREQ_status_query = "SELECT tuition_amtb FROM financial_status WHERE ticket_id = %s"
+        student_schoolREQ_status_query = "SELECT * FROM financial_status WHERE ticket_id = %s"
         cursor.execute(student_schoolREQ_status_query, (student_data['ticket_id'],))
         student_schoolREQ_status_data = cursor.fetchone()
         if student_schoolREQ_status_data is None:
@@ -287,158 +486,6 @@ def systemNOTIFS():
     finally:
         my_sql.close()
 
-def saveTUISTAT(student_id, student_status):
-    my_sql = connectDB()
-    cursor = my_sql.cursor(dictionary=True)
-    student_status.discount_percent = get_discount_rate(student_status.discount_type)
-    student_status.total_amtb = student_status.tuition_amtb + student_status.uniform_amtb + student_status.books_amtb
-    student_status.final_amtb = student_status.total_amtb - (student_status.total_amtb * student_status.discount_percent / 100)
-    try:
-        get_ticketID_query = "SELECT * FROM student WHERE student_id = %s"
-        cursor.execute(get_ticketID_query, (student_id,))
-        get_ticketID = cursor.fetchone()
-        financial_status_query = """INSERT INTO financial_status (ticket_id, tuition_amtb, uniform_amtb, books_amtb,
-        discount_type, discount_percent, final_amtb, semester)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
-        values = (get_ticketID['ticket_id'], student_status.tuition_amtb, student_status.uniform_amtb, student_status.books_amtb,
-                student_status.discount_type, student_status.discount_percent, student_status.final_amtb, student_status.semester)
-        cursor.execute(financial_status_query, values)
-        print(f"\n=== [FINANCIAL RECORD SETTED FOR STUDENT: {get_ticketID['first_name']}] ===")
-        print(f"Original Amount: Php {float(student_status.total_amtb)} || Discount Applied: {float(student_status.discount_percent)}% || Final Amount: Php {float(student_status.final_amtb)}")
-        my_sql.commit()
-    except Exception as e:
-        my_sql.rollback()
-        print("\n[SETTING FAILED]", e)
-    finally:
-        my_sql.close()
-
-def get_discount_rate(discount_type):
-    if discount_type.lower() in ("academic excellence full"):
-        return 100
-    elif discount_type.lower() in ("academic excellence partial"):
-        return 50
-    elif discount_type.lower() in "cultural":
-        return 70
-    elif discount_type.lower() in "athletic":
-        return 50
-    elif discount_type.lower() in "brassband":
-        return 100
-    elif discount_type.lower() in "freshmen":
-        return 15
-    elif discount_type.lower() in "alumni grade 7 to 12":
-        return 40
-    elif discount_type.lower() in "alumni grade 8 to 12":
-        return 35
-    elif discount_type.lower() in "alumni grade 9 to 12":
-        return 30
-    elif discount_type.lower() in "alumni grade 10 to 12":
-        return 25
-    elif discount_type.lower() in "alumni grade 11 to 12":
-        return 20
-    elif discount_type.lower() in "sibling":
-        return 10
-    elif discount_type.lower() in "employee child":
-        return 50
-    elif discount_type.lower() in "employee sibling":
-        return 25
-    elif discount_type.lower() in "full payment":
-        return 5
-    elif discount_type.lower() in "student assistant":
-        return 0
-    else:
-        return 0
-
-def inquipay():
-    while True:
-        print(f"\n[WELCOME {REGISTERED_name}]")
-        print("1. Cash In")
-        print("2. Send to Recipient")
-        print("3. Pay School Requisites")
-        print("4. Notifications")
-        print("5. Check Balance")
-        print("6. Help Center")
-        print("7. Go Back")
-        try:
-            choice = int(input("Enter: "))
-        except ValueError:
-            choice = -1
-        match choice:
-            case 1:
-                cashIN()
-            case 2:
-                sendtoRECIPIENT()
-            case 3:
-                paytoSCHOOLREQ()
-            case 4:
-                viewNOTIFS()
-            case 5:
-                checkBALANCE()
-            case 6:
-                helpCENTER()
-            case 7:
-                break
-            case _:
-                for i in range(3):
-                    print("\n[PLEASE ENTER A VALID INPUT]")
-
-def cashIN():
-    stud_balance = student()
-    print("\n[CASH IN]")
-    stud_balance.balance = float(input("Enter Amount: "))
-    saveSTUDENTS_BALANCE(stud_balance)
-
-def sendtoRECIPIENT():
-    transactions = payment_transac()
-    print("\n[SEND TO RECIPIENT]")
-    recipient_student_id = input("Enter Recipient's Student ID: ")
-    transactions.payment_amount = float(input("\nEnter Amount to Send: "))
-    saveSEND_RECIPIENT_PROCESS(recipient_student_id, transactions)
-
-def paytoSCHOOLREQ():
-    transactions = payment_transac()
-    print("\n[PAY SCHOOL REQUISITES]")
-    transactions.purpose = input("Enter payment purpose: ")
-    transactions.payment_amount = float(input("\nEnter Amount to Pay: "))
-    savePAY_TO_SCHOOLREQ_PROCESS(transactions)
-
-def viewNOTIFS():
-    try:
-        my_sql = connectDB()
-        cursor = my_sql.cursor(dictionary=True)
-        student_query = "SELECT * FROM student WHERE first_name = %s"
-        cursor.execute(student_query, (REGISTERED_name,))
-        student_data = cursor.fetchone()
-        if student_data is None:
-            print("\nSTUDENT NOT FOUND")
-            return
-        notification_query = "SELECT * FROM notifications WHERE student_id = %s ORDER BY notif_date DESC"
-        cursor.execute(notification_query, (student_data['student_id'],))
-        notifications_data = cursor.fetchall()
-        if not notifications_data:
-            print("\n[NO NEW NOTIFICATIONS]")
-            return
-        print("\n=== [NOTIFICATIONS] ===")
-        for notifs in notifications_data:
-            print(f"\n{notifs['notif_type'].upper()} || {notifs['notif_message']}")
-            print(f"Date: {notifs['notif_date']}")
-        my_sql.commit()
-    except Exception as e:
-        my_sql.rollback()
-        print("\n[FAILED TO LOAD NOTIFICATIONS]", e)
-
-def checkBALANCE():
-    my_sql = connectDB()
-    cursor = my_sql.cursor(dictionary=True)
-    check_balance_query = "SELECT * FROM student WHERE first_name = %s"
-    cursor.execute(check_balance_query, (REGISTERED_name,))
-    student_data = cursor.fetchone()
-    if student_data is None:
-        print("\n[STUDENT DATA DOES NOT EXISTS]")
-    print(f"\n=== [YOUR CURRENT BALANCE: {student_data['balance']}]")
-
-def helpCENTER():
-    print()
-
 def saveSTUDENTS(students):
     my_sql = connectDB()
     cursor = my_sql.cursor()
@@ -502,9 +549,9 @@ def saveSEND_RECIPIENT_PROCESS(recipient_student_id, transactions):
         cursor.execute(transaction_sender, (transactions.payment_amount, sender['student_id']))
         transaction_receiver = "UPDATE student SET balance = balance + %s WHERE student_id = %s"
         cursor.execute(transaction_receiver, (transactions.payment_amount, recipient_student_id))
-        insert_transaction = """INSERT INTO payment_transaction (ticket_id, sender_name, receiver_name, payment_amount, reference_no)
-        VALUES (%s, %s, %s, %s, %s)"""
-        values = (sender['ticket_id'], sender['first_name'], receiver['first_name'], transactions.payment_amount, transactions.reference_no)
+        insert_transaction = """INSERT INTO payment_transaction (ticket_id, sender_name, receiver_name, payment_amount, purpose, reference_no)
+        VALUES (%s, %s, %s, %s, %s, %s)"""
+        values = (sender['ticket_id'], sender['first_name'], receiver['first_name'], transactions.payment_amount, transactions.purpose, transactions.reference_no)
         cursor.execute(insert_transaction, values)
         print(f"\n=== REFERENCE NO.: {transactions.reference_no} ===")
         print(f"[SUCCESSFULLY SENT Php {transactions.payment_amount} to {receiver['first_name']}]")
@@ -518,6 +565,7 @@ def saveSEND_RECIPIENT_PROCESS(recipient_student_id, transactions):
         my_sql.close()
 
 def savePAY_TO_SCHOOLREQ_PROCESS(transactions):
+    finance = financial_status()
     transactions.payment_date = generate_schoolREQS_date()
     transactions.reference_no = generate_reference_no_SCHOOLREQS()
     my_sql = connectDB()
@@ -526,7 +574,7 @@ def savePAY_TO_SCHOOLREQ_PROCESS(transactions):
         student_query = "SELECT * FROM student WHERE first_name = %s"
         cursor.execute(student_query, (REGISTERED_name,))
         student = cursor.fetchone()
-        if student is None:
+        if not student:
             print("\n[USER DOES NOT EXIST]")
             return
         if student['balance'] < transactions.payment_amount:
@@ -535,35 +583,72 @@ def savePAY_TO_SCHOOLREQ_PROCESS(transactions):
         schoolREQ_query = "SELECT * FROM financial_status WHERE ticket_id = %s"
         cursor.execute(schoolREQ_query, (student['ticket_id'],))
         schoolREQ_data = cursor.fetchone()
-        if schoolREQ_data is None:
+        if not schoolREQ_data:
             print("\n[NO RECORD FOUND]")
             return
         student_transaction_query = "UPDATE student SET balance = balance - %s WHERE student_id = %s"
         cursor.execute(student_transaction_query, (transactions.payment_amount, student['student_id']))
-        if transactions.purpose.lower() in "tuition":
-            status_column = "tuition_status"
-            amount_due = float(schoolREQ_data['tuition_amtb'])
-        elif transactions.purpose.lower() in "books":
-            status_column = "books_status"
-            amount_due = float(schoolREQ_data['books_amtb'])
-        elif transactions.purpose.lower() in "uniform":
-            status_column = "uniform_status"
-            amount_due = float(schoolREQ_data['uniform_amtb'])
-        if transactions.payment_amount >= amount_due:
-            new_status = "APPROVED"
+        discount_query = "SELECT * FROM discounted_fees WHERE status_id = %s"
+        cursor.execute(discount_query, (schoolREQ_data['status_id'],))
+        discounted = cursor.fetchone()
+        if discounted:
+            if transactions.purpose.lower() == "tuition":
+                finance.status_column = "tuition_status"
+                finance.amount_due = float(discounted['tuition_discounted'])
+            elif transactions.purpose.lower() == "books":
+                finance.status_column = "books_status"
+                finance.amount_due = float(discounted['books_discounted'])
+            elif transactions.purpose.lower() == "uniform":
+                finance.status_column = "uniform_status"
+                finance.amount_due = float(discounted['uniform_discounted'])
+            else:
+                print("\n[INVALID PURPOSE]")
+                return
         else:
-            new_status = "SEMI-APPROVED"
-        update_financial_stat_query = f"UPDATE financial_status SET {status_column} = %s, payment_status = %s WHERE status_id = %s"
-        cursor.execute(update_financial_stat_query, (new_status, "SEMI-PAID" if new_status == "SEMI-APPROVED" else "PAID", schoolREQ_data['status_id']))
-        insert_payment_query = """INSERT INTO payment_transaction (ticket_id, status_id, payment_amount, reference_no,
-        sender_name, receiver_name) VALUES (%s, %s, %s, %s, %s, %s)"""
-        cursor.execute(insert_payment_query, (student['ticket_id'], schoolREQ_data['status_id'], transactions.payment_amount, transactions.reference_no, student['first_name'], "DYCI Elida Finance"))
+            if transactions.purpose.lower() == "tuition":
+                finance.status_column = "tuition_status"
+                finance.amount_due = float(schoolREQ_data['tuition_amtb'])
+            elif transactions.purpose.lower() == "books":
+                finance.status_column = "books_status"
+                finance.amount_due = float(schoolREQ_data['books_amtb'])
+            elif transactions.purpose.lower() == "uniform":
+                finance.status_column = "uniform_status"
+                finance.amount_due = float(schoolREQ_data['uniform_amtb'])
+            else:
+                print("\n[INVALID PURPOSE]")
+                return
+        get_paid_query = "SELECT COALESCE(SUM(payment_amount)) AS total_paid FROM payment_transaction WHERE ticket_id = %s and purpose = %s"
+        cursor.execute(get_paid_query, (student['ticket_id'], transactions.purpose))
+        paid = float(cursor.fetchone()['total_paid'] or 0)
+        remaining_due = finance.amount_due - paid - transactions.payment_amount
+        if remaining_due <= 0:
+            finance.new_status = "APPROVED"
+        else:
+            finance.new_status = "PENDING"
+        update_financial_stat_query = f"UPDATE financial_status SET {finance.status_column} = %s WHERE status_id = %s"
+        cursor.execute(update_financial_stat_query, (finance.new_status, schoolREQ_data['status_id']))
+        query = "SELECT tuition_status, books_status, uniform_status FROM financial_status WHERE status_id = %s"
+        cursor.execute(query, (schoolREQ_data['status_id'],))
+        student_finance_data = cursor.fetchone()
+        if all(status == "APPROVED" for status in student_finance_data.values()):
+            finance.payment_status = "PAID"
+        elif any(status == "PENDING" for status in student_finance_data.values()):
+            finance.payment_status = "SEMI-PAID"
+        elif any(status == "APPROVED" for status in student_finance_data.values()):
+            finance.payment_status = "SEMI-PAID"
+        else:
+            finance.payment_status = "UNPAID"
+        update_status_query = "UPDATE financial_status SET payment_status = %s WHERE status_id = %s"
+        cursor.execute(update_status_query, (finance.payment_status, schoolREQ_data['status_id']))
+        insert_payment_query = """INSERT INTO payment_transaction (ticket_id, status_id, payment_amount, purpose, reference_no,
+        sender_name, receiver_name) VALUES (%s, %s, %s, %s, %s, %s, %s)"""
+        cursor.execute(insert_payment_query, (student['ticket_id'], schoolREQ_data['status_id'], transactions.payment_amount, transactions.purpose, transactions.reference_no, student['first_name'], "DYCI Elida Finance"))
         print("\n=== [PAYMENT SUCCESSFUL] ===")
         print(f"REFERENCE NO.: {transactions.reference_no}")
         print(f"PURPOSE OF PAYMENT: {transactions.purpose}")
         print(f"AMOUNT PAID: Php {transactions.payment_amount}")
-        print(f"STATUS: {new_status}")
-        print(f"[YOUR CURRENT BALANCE: {student['balance']}]")
+        print(f"STATUS: {finance.new_status}")
+        print(f"[YOUR CURRENT BALANCE: {float(student['balance']) - transactions.payment_amount}]")
         print(f"=== DATE: {transactions.payment_date} ===")
         my_sql.commit()
     except Exception as e:
@@ -571,6 +656,89 @@ def savePAY_TO_SCHOOLREQ_PROCESS(transactions):
         print("\n[PAYMENT FAILED]", e)
     finally:
         my_sql.close()
+
+def saveTUISTAT(student_id, student_status):
+    discounts = discounted_fees()
+    my_sql = connectDB()
+    cursor = my_sql.cursor(dictionary=True)
+    student_status.discount_percent = get_discount_rate(student_status.discount_type)
+    student_status.total_amtb = student_status.tuition_amtb + student_status.uniform_amtb + student_status.books_amtb
+    if student_status.discount_type and student_status.discount_percent > 0:
+        discount_amount = (student_status.total_amtb * student_status.discount_percent) / 100
+        student_status.final_amtb = student_status.total_amtb - discount_amount
+        discounts.tuition_discounted = student_status.tuition_amtb - (student_status.tuition_amtb * student_status.discount_percent / 100)
+        discounts.book_discounted = student_status.books_amtb - (student_status.books_amtb * student_status.discount_percent / 100)
+        discounts.uniform_discounted= student_status.uniform_amtb - (student_status.uniform_amtb * student_status.discount_percent / 100)
+        discounts.total_discounted = discounts.tuition_discounted + discounts.book_discounted + discounts.uniform_discounted
+    else:
+        student_status.discount_type = None
+        student_status.discount_percent = 0.0
+        student_status.final_amtb = student_status.final_amtb
+        discounts = None
+    try:
+        get_ticketID_query = "SELECT * FROM student WHERE student_id = %s"
+        cursor.execute(get_ticketID_query, (student_id,))
+        get_ticketID = cursor.fetchone()
+        if get_ticketID is None:
+            print("\n[RECORD NOT FOUND]")
+            return
+        financial_status_query = """INSERT INTO financial_status (ticket_id, tuition_amtb, uniform_amtb, books_amtb, total_amtb,
+        discount_type, discount_percent, final_amtb, semester)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+        values = (get_ticketID['ticket_id'], student_status.tuition_amtb, student_status.uniform_amtb, student_status.books_amtb, student_status.total_amtb,
+                student_status.discount_type, student_status.discount_percent, student_status.final_amtb, student_status.semester)
+        cursor.execute(financial_status_query, values)
+        financial_status_query = "SELECT * FROM financial_status WHERE ticket_id = %s"
+        cursor.execute(financial_status_query, (get_ticketID['ticket_id'],))
+        status_id_discounted = cursor.fetchone()
+        if discounts:
+            discount_insert_query = """INSERT INTO discounted_fees (status_id, tuition_discounted, books_discounted, uniform_discounted, total_discounted)
+            VALUES (%s, %s, %s, %s, %s)"""
+            cursor.execute(discount_insert_query, (status_id_discounted['status_id'], discounts.tuition_discounted, discounts.book_discounted, discounts.uniform_discounted, discounts.total_discounted))
+        print(f"\n=== [FINANCIAL RECORD SETTED FOR STUDENT: {get_ticketID['first_name']}] ===")
+        print(f"Original Amount: Php {float(student_status.total_amtb)} || Discount Applied: {float(student_status.discount_percent)}% || Final Amount: Php {float(student_status.final_amtb)}")
+        my_sql.commit()
+    except Exception as e:
+        my_sql.rollback()
+        print("\n[SETTING FAILED]", e)
+    finally:
+        my_sql.close()
+
+def get_discount_rate(discount_type):
+    if discount_type.lower() in "academic excellence - full":
+        return 100
+    elif discount_type.lower() in "academic excellence - partial":
+        return 50
+    elif discount_type.lower() in "cultural":
+        return 70
+    elif discount_type.lower() in "athletic":
+        return 50
+    elif discount_type.lower() in "brassband":
+        return 100
+    elif discount_type.lower() in "freshmen":
+        return 15
+    elif discount_type.lower() in "alumni - grade 7 to 12":
+        return 40
+    elif discount_type.lower() in "alumni - grade 8 to 12":
+        return 35
+    elif discount_type.lower() in "alumni - grade 9 to 12":
+        return 30
+    elif discount_type.lower() in "alumni - grade 10 to 12":
+        return 25
+    elif discount_type.lower() in "alumni - grade 11 to 12":
+        return 20
+    elif discount_type.lower() in "sibling":
+        return 10
+    elif discount_type.lower() in "employee - child":
+        return 50
+    elif discount_type.lower() in "employee - sibling":
+        return 25
+    elif discount_type.lower() in "full - payment":
+        return 5
+    elif discount_type.lower() in "student - assistant":
+        return 0
+    else:
+        return 0
 
 
 if __name__ == "__main__":
