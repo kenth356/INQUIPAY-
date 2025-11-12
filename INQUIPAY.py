@@ -1,5 +1,5 @@
 from connection import connectDB
-from generator import generate_reference_no_CASHIN, generate_reference_no_SENDPAYMENT, generate_reference_no_SCHOOLREQS, generate_cashIN_date, generate_sendpayment_date, generate_schoolREQS_date
+import generator
 from adminCODE import admin_inquipay
 import random
 
@@ -508,8 +508,8 @@ def saveSTUDENTS_BALANCE(stud_balance):
         update_student_balance_query = "UPDATE student SET balance = balance + %s WHERE student_id = %s"
         value = (stud_balance.balance, REGISTERED_studentID)
         cursor.execute(update_student_balance_query, value)
-        cash_in_ref = generate_reference_no_CASHIN()
-        cash_in_date = generate_cashIN_date()
+        cash_in_ref = generator.generate_reference_no_CASHIN()
+        cash_in_date = generator.generate_cashIN_date()
         print(f"\n=== REFERENCE NO.: {cash_in_ref} ===")
         print(f"[Php {stud_balance.balance} WAS DEPOSITED IN YOUR ACCOUNT]")
         print(f"=== DATE: {cash_in_date} ===")
@@ -521,8 +521,8 @@ def saveSTUDENTS_BALANCE(stud_balance):
         my_sql.close()
 
 def saveSEND_RECIPIENT_PROCESS(recipient_student_id, transactions):
-    transactions.payment_date = generate_sendpayment_date()
-    transactions.reference_no = generate_reference_no_SENDPAYMENT()
+    transactions.payment_date = generator.generate_sendpayment_date()
+    transactions.reference_no = generator.generate_reference_no_SENDPAYMENT()
     my_sql = connectDB()
     cursor = my_sql.cursor(dictionary=True)
     try:
@@ -562,8 +562,8 @@ def saveSEND_RECIPIENT_PROCESS(recipient_student_id, transactions):
 
 def savePAY_TO_SCHOOLREQ_PROCESS(transactions):
     finance = financial_status()
-    transactions.payment_date = generate_schoolREQS_date()
-    transactions.reference_no = generate_reference_no_SCHOOLREQS()
+    transactions.payment_date = generator.generate_schoolREQS_date()
+    transactions.reference_no = generator.generate_reference_no_SCHOOLREQS()
     my_sql = connectDB()
     cursor = my_sql.cursor(dictionary=True)
     try:
